@@ -1,15 +1,16 @@
+# from http.client import HTTPException
+from fastapi import HTTPException, APIRouter
+
+from pymongo import DESCENDING
+
 from app.db_management.config_db import usersCollection
 from app.models import LoginRequest
-from app.models.User import User
+from app.models import User
 from app.db_management.config_db import usersCollection
-import re
 
 
 async def register(user: User):
-    if not re.fullmatch(r'^\w{3,20}$', user.userName):
-        return "Invalid userName: must be 3-20 alphanumeric characters or underscores."
-    if not re.fullmatch(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$', user.password):
-        return "Invalid password: must be at least 8 characters long and contain at least one letter and one number."
+    user.id = await set_id()
     res = usersCollection.insert_one(user.dict())
     return user.id
 
@@ -25,30 +26,24 @@ async def login(loginRequest: LoginRequest):
     return current_user
 
 
-async def update_user(userName:str, user:User):
+async def update_user(userName: str, user: User):
     current_user = usersCollection.find_one({
         "userName": userName,
     })
     if current_user is None:
-        return None
-
-    if not re.fullmatch(r'^\w{3,20}$', user.userName):
-        return "Invalid userName: must be 3-20 alphanumeric characters or underscores."
-    if not re.fullmatch(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$', user.password):
-        return "Invalid password: must be at least 8 characters long and contain at least one letter and one number."
-
-    update_fields = {k: v for k, v in user.dict().items() if v is not None}
-    if not update_fields:
-        return current_user
-
+        raise HTTPException(status_code=404, detail="User not found")
+    updated_user = user.dict()
+    updated_user["id"] = current_user["id"]
     result = usersCollection.update_one(
         {"userName": userName},
-        {"$set": update_fields}
+        {"$set": updated_user}
     )
+    return updated_user
 
-    if result.modified_count == 1:
-        updated_user = usersCollection.find_one({"userName": userName})
-        return updated_user
+
+async def set_id():
+    max_id = usersCollection.find_one({}, sort=[("id", DESCENDING)])
+    if max_id:
+        return max_id["id"] + 1
     else:
-        return current_user
-
+        return 0
