@@ -13,7 +13,7 @@ async def register(user: User):
 
 @users_router.post('/login')
 async def login(login_request: LoginRequest):
-   return await user_CRUD.login(login_request)
+    return await user_CRUD.login(login_request)
 
 
 @users_router.put("/userName", response_model=User)

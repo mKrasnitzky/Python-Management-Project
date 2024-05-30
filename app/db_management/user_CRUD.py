@@ -47,3 +47,6 @@ async def set_id():
         return max_id["id"] + 1
     else:
         return 0
+
+def func(x):
+    return x>10
